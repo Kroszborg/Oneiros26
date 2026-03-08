@@ -1175,6 +1175,32 @@ export default function Map({ onNavigate, onClose, activePage }: MapProps) {
         m.glow.dispose();
       }
 
+   
+      scene.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+
+   
+        if (object.geometry) {
+          object.geometry.dispose();
+        }
+
+       
+        if (object.material) {
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          for (const mat of materials) {
+            mat.dispose();
+            
+     
+            for (const key in mat) {
+              const value = (mat as any)[key];
+              if (value && typeof value === 'object' && 'minFilter' in value) {
+                value.dispose();
+              }
+            }
+          }
+        }
+      });
+
       renderer.dispose();
       emberGeo.dispose(); emberMat.dispose(); spriteTex.dispose();
       starsGeo.dispose(); starsMat.dispose(); starTex.dispose();

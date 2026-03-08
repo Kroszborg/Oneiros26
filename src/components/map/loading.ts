@@ -1,13 +1,20 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 export type LoadedGLTF = {
   scene: THREE.Group;
   animations: THREE.AnimationClip[];
 };
 
-export const loadGLB = (loader: GLTFLoader, url: string) =>
-  new Promise<LoadedGLTF>((res, rej) => loader.load(url, res, undefined, rej));
+
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+
+export const loadGLB = (loader: GLTFLoader, url: string) => {
+  loader.setDRACOLoader(dracoLoader);
+  return new Promise<LoadedGLTF>((res, rej) => loader.load(url, res, undefined, rej));
+};
 
 export const enableMeshShadows = (root: THREE.Object3D) => {
   root.traverse((node: THREE.Object3D) => {

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import emailjs from '@emailjs/browser';
 import CosmicBackground from './CosmicBackground';
 import './Contact.css';
 
@@ -41,20 +40,26 @@ export default function Contact() {
         const TEMPLATE_ID = 'template_b3ydgot';
         const PUBLIC_KEY = 'X3tahPLHPIo_zf6vn';
 
-        emailjs.sendForm(SERVICE_ID, TEMPLATE_ID, formRef.current, PUBLIC_KEY)
-            .then(() => {
-                setSubmitStatus('success');
-                if (formRef.current) formRef.current.reset();
-            })
-            .catch((error) => {
-                console.error("EmailJS Error:", error);
-                setSubmitStatus('error');
-            })
-            .finally(() => {
-                setIsSubmitting(false);
-                // Clear success message after 5 seconds
-                setTimeout(() => setSubmitStatus('idle'), 5000);
-            });
+        import('@emailjs/browser').then(({ default: emailjs }) => {
+            emailjs.sendForm(SERVICE_ID, TEMPLATE_ID, formRef.current!, PUBLIC_KEY)
+                .then(() => {
+                    setSubmitStatus('success');
+                    if (formRef.current) formRef.current.reset();
+                })
+                .catch((error) => {
+                    console.error("EmailJS Error:", error);
+                    setSubmitStatus('error');
+                })
+                .finally(() => {
+                    setIsSubmitting(false);
+                    // Clear success message after 5 seconds
+                    setTimeout(() => setSubmitStatus('idle'), 5000);
+                });
+        }).catch(err => {
+            console.error("Failed to load EmailJS:", err);
+            setSubmitStatus('error');
+            setIsSubmitting(false);
+        });
     };
 
     return (

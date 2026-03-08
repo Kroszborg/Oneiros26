@@ -96,6 +96,7 @@ export default function Preloader({ onComplete }: PreloaderProps) {
                 muted
                 playsInline
                 preload="auto"
+                {...({ fetchPriority: 'high' } as any)}
                 onEnded={handleComplete}
                 className="preloader-video"
             >
