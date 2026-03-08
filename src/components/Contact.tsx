@@ -41,7 +41,10 @@ export default function Contact() {
         const PUBLIC_KEY = 'X3tahPLHPIo_zf6vn';
 
         import('@emailjs/browser').then(({ default: emailjs }) => {
-            emailjs.sendForm(SERVICE_ID, TEMPLATE_ID, formRef.current!, PUBLIC_KEY)
+            const currentForm = formRef.current;
+            if (!currentForm) return;
+
+            emailjs.sendForm(SERVICE_ID, TEMPLATE_ID, currentForm, PUBLIC_KEY)
                 .then(() => {
                     setSubmitStatus('success');
                     if (formRef.current) formRef.current.reset();

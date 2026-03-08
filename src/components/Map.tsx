@@ -1196,7 +1196,7 @@ export default function Map({ onNavigate, onClose, activePage }: MapProps) {
      
             for (const key in mat) {
               const value = (mat as any)[key];
-              if (value && typeof value === 'object' && 'minFilter' in value) {
+              if (value && typeof value === 'object' && typeof value.dispose === 'function') {
                 value.dispose();
               }
             }
