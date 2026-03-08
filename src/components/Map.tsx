@@ -1091,11 +1091,13 @@ export default function Map({ onNavigate, onClose, activePage }: MapProps) {
         console.error('Map asset init error:', err);
       }
 
-      // Then enable post-processing (shader compilation, framebuffer allocation)
-      try {
-        await enablePostProcessing();
-      } catch (err) {
-        console.error('PostFX init error:', err);
+     
+      if (!isMobile) {
+        try {
+          await enablePostProcessing();
+        } catch (err) {
+          console.error('PostFX init error:', err);
+        }
       }
 
       // ── MULTI-ANGLE WARM-UP RENDERS ──
@@ -1105,7 +1107,8 @@ export default function Map({ onNavigate, onClose, activePage }: MapProps) {
       const savedTarget = new THREE.Vector3();
       camera.getWorldDirection(savedTarget);
 
-      for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
+      const angleStep = isMobile ? Math.PI : Math.PI / 4;
+      for (let angle = 0; angle < Math.PI * 2; angle += angleStep) {
         camera.position.set(
           Math.sin(angle) * CAM_DIST_DEFAULT,
           charH * 0.3 + CAM_DIST_DEFAULT * 0.15,

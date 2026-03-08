@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { BrowserRouter, useLocation, useNavigate } from 'react-router-dom';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
 import Preloader from './components/Preloader';
@@ -57,6 +57,13 @@ function AppContent() {
     }
   };
 
+  const [mountMap, setMountMap] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setMountMap(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <>
       <Helmet>
@@ -72,11 +79,13 @@ function AppContent() {
       {/* ── MAIN EXPERIENCE ───────────────────────────────────────────────── */}
       {/* Mounted immediately — WebGL initializes while preloader plays */}
       <Suspense fallback={null}>
-        <Map
-          onNavigate={handleNavigate}
-          onClose={() => handleNavigate(null)}
-          activePage={activePage}
-        />
+        {mountMap && (
+          <Map
+            onNavigate={handleNavigate}
+            onClose={() => handleNavigate(null)}
+            activePage={activePage}
+          />
+        )}
       </Suspense>
 
       {/* Page overlay — shown when a nav link is clicked */}
