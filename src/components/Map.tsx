@@ -1091,11 +1091,13 @@ export default function Map({ onNavigate, onClose, activePage }: MapProps) {
         console.error('Map asset init error:', err);
       }
 
-      // Then enable post-processing (shader compilation, framebuffer allocation)
-      try {
-        await enablePostProcessing();
-      } catch (err) {
-        console.error('PostFX init error:', err);
+     
+      if (!isMobile) {
+        try {
+          await enablePostProcessing();
+        } catch (err) {
+          console.error('PostFX init error:', err);
+        }
       }
 
       // ── MULTI-ANGLE WARM-UP RENDERS ──
@@ -1105,7 +1107,8 @@ export default function Map({ onNavigate, onClose, activePage }: MapProps) {
       const savedTarget = new THREE.Vector3();
       camera.getWorldDirection(savedTarget);
 
-      for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
+      const angleStep = isMobile ? Math.PI : Math.PI / 4;
+      for (let angle = 0; angle < Math.PI * 2; angle += angleStep) {
         camera.position.set(
           Math.sin(angle) * CAM_DIST_DEFAULT,
           charH * 0.3 + CAM_DIST_DEFAULT * 0.15,
@@ -1174,6 +1177,32 @@ export default function Map({ onNavigate, onClose, activePage }: MapProps) {
         (m.outerRing.material as THREE.Material).dispose();
         m.glow.dispose();
       }
+
+   
+      scene.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+
+   
+        if (object.geometry) {
+          object.geometry.dispose();
+        }
+
+       
+        if (object.material) {
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          for (const mat of materials) {
+            mat.dispose();
+            
+     
+            for (const key in mat) {
+              const value = (mat as any)[key];
+              if (value && typeof value === 'object' && typeof value.dispose === 'function') {
+                value.dispose();
+              }
+            }
+          }
+        }
+      });
 
       renderer.dispose();
       emberGeo.dispose(); emberMat.dispose(); spriteTex.dispose();

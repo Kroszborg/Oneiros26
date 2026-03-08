@@ -1,8 +1,10 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { BrowserRouter, useLocation, useNavigate } from 'react-router-dom';
+import { HelmetProvider, Helmet } from 'react-helmet-async';
 import Preloader from './components/Preloader';
 import Navbar from './components/Navbar';
-import Map from './components/Map';
+
+const Map = lazy(() => import('./components/Map'));
 import './App.css';
 
 // ── Lazy-loaded page overlays (only fetched when user navigates to them) ──
@@ -55,8 +57,19 @@ function AppContent() {
     }
   };
 
+  const [mountMap, setMountMap] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setMountMap(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <>
+      <Helmet>
+        <title>Oneiros 2026 – MUJ Cultural Fest | Events & Competitions</title>
+        <meta name="description" content="Join Oneiros 2026 – the annual cultural fest of Manipal University Jaipur featuring competitions, performances, and exciting events." />
+      </Helmet>
       {!activePage && (
         <h1 className="seo-homepage-heading">
           Oneiros 2026 – Manipal University Jaipur Cultural Fest
@@ -65,11 +78,15 @@ function AppContent() {
 
       {/* ── MAIN EXPERIENCE ───────────────────────────────────────────────── */}
       {/* Mounted immediately — WebGL initializes while preloader plays */}
-      <Map
-        onNavigate={handleNavigate}
-        onClose={() => handleNavigate(null)}
-        activePage={activePage}
-      />
+      <Suspense fallback={null}>
+        {mountMap && (
+          <Map
+            onNavigate={handleNavigate}
+            onClose={() => handleNavigate(null)}
+            activePage={activePage}
+          />
+        )}
+      </Suspense>
 
       {/* Page overlay — shown when a nav link is clicked */}
       {activePage && pageComponents[activePage] && (
@@ -157,15 +174,17 @@ export default function App() {
   const [preloaderDone, setPreloaderDone] = useState(false);
 
   return (
-    <BrowserRouter>
-      <div className="app-root">
-        {/* ── PRELOADER (video + progress bar) ─────────────────────────────── */}
-        {!preloaderDone && (
-          <Preloader onComplete={() => setPreloaderDone(true)} />
-        )}
+    <HelmetProvider>
+      <BrowserRouter>
+        <div className="app-root">
+          {/* ── PRELOADER (video + progress bar) ─────────────────────────────── */}
+          {!preloaderDone && (
+            <Preloader onComplete={() => setPreloaderDone(true)} />
+          )}
 
-        <AppContent />
-      </div>
-    </BrowserRouter>
+          <AppContent />
+        </div>
+      </BrowserRouter>
+    </HelmetProvider>
   );
 }
