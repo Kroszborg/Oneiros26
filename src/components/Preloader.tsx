@@ -43,6 +43,13 @@ export default function Preloader({ onComplete }: PreloaderProps) {
             video.playbackRate = 1.2;
             video.play().catch(err => console.warn('Autoplay prevented:', err));
             initializedRef.current = true;
+
+          
+            const splash = document.getElementById('static-splash');
+            if (splash) {
+                splash.style.opacity = '0';
+                setTimeout(() => splash.remove(), 600);
+            }
         }
 
         let rafId: number;
