@@ -1,23 +1,30 @@
-import js from '@eslint/js'
-import globals from 'globals'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import tseslint from 'typescript-eslint'
-import { defineConfig, globalIgnores } from 'eslint/config'
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { FlatCompat } from '@eslint/eslintrc';
 
-export default defineConfig([
-  globalIgnores(['dist']),
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const compat = new FlatCompat({ baseDirectory: __dirname });
+
+const eslintConfig = [
+  ...compat.extends('next/core-web-vitals', 'next/typescript'),
   {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      js.configs.recommended,
-      tseslint.configs.recommended,
-      reactHooks.configs.flat.recommended,
-      reactRefresh.configs.vite,
-    ],
-    languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
+    rules: {
+      // Allow apostrophes in JSX text (normal English)
+      'react/no-unescaped-entities': 'off',
+      // Prefix with _ to suppress unused-var warnings
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      // Allow `any` in complex existing WebGL/gesture code — warn only
+      '@typescript-eslint/no-explicit-any': 'warn',
+      // Dynamic imports use `module` as variable name — allow
+      '@next/next/no-assign-module-variable': 'off',
+      // Remaining img tags are in complex animation contexts where next/image
+      // would break the layout — acceptable trade-off
+      '@next/next/no-img-element': 'warn',
+      'prefer-const': 'warn',
     },
   },
-])
+];
+
+export default eslintConfig;

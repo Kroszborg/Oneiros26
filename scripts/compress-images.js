@@ -2,18 +2,13 @@
  * compress-images.js
  *
  * Batch-compresses all images in the Oneiros-26 public folder.
+ * Targets: 90+ Lighthouse score, <300KB per image.
  *
  * Usage:  node scripts/compress-images.js
- *
- * What it does:
- *   1. Converts every JPG in public/minor_events/ to WebP (max 1920px wide, q80)
- *   2. Compresses public/oneiros-logo.png → WebP (max 800px wide, q85)
- *   3. Compresses public/favicon.png → 256×256 optimised PNG
- *   4. Compresses every image in public/team/ to WebP (max 600px wide, q80)
  */
 
 import sharp from 'sharp';
-import { readdirSync, statSync, existsSync } from 'fs';
+import { readdirSync, statSync, existsSync, writeFileSync, readFileSync } from 'fs';
 import { join, extname, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -24,95 +19,89 @@ const PUBLIC = join(__dirname, '..', 'public');
 
 /* ── helpers ─────────────────────────────────────────────────────────── */
 
-async function compressToWebP(inputPath, outputPath, maxWidth, quality = 80) {
-    const meta = await sharp(inputPath).metadata();
-    const needsResize = meta.width && meta.width > maxWidth;
+async function processFile(fullPath, maxWidth, quality) {
+    const name = basename(fullPath);
+    const dir = fullPath.slice(0, fullPath.length - name.length - 1) || '.';
 
-    let pipeline = sharp(inputPath);
-    if (needsResize) pipeline = pipeline.resize({ width: maxWidth, withoutEnlargement: true });
-    await pipeline.webp({ quality }).toFile(outputPath);
-
-    const before = statSync(inputPath).size;
-    const after = statSync(outputPath).size;
-    console.log(
-        `  ✅ ${basename(inputPath)} → ${basename(outputPath)}  ` +
-        `${(before / 1024 / 1024).toFixed(1)} MB → ${(after / 1024).toFixed(0)} KB  ` +
-        `(${((1 - after / before) * 100).toFixed(0)}% smaller)`
-    );
-}
-
-async function compressPNG(inputPath, outputPath, size) {
-    await sharp(inputPath)
-        .resize({ width: size, height: size, fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-        .png({ quality: 80, compressionLevel: 9 })
-        .toFile(outputPath);
-
-    const before = statSync(inputPath).size;
-    const after = statSync(outputPath).size;
-    console.log(
-        `  ✅ ${basename(inputPath)} → ${basename(outputPath)}  ` +
-        `${(before / 1024).toFixed(0)} KB → ${(after / 1024).toFixed(0)} KB  ` +
-        `(${((1 - after / before) * 100).toFixed(0)}% smaller)`
-    );
-}
-
-/* ── 1. Minor events ─────────────────────────────────────────────────── */
-
-async function compressMinorEvents() {
-    const dir = join(PUBLIC, 'minor_events');
-    const files = readdirSync(dir).filter(f => /\.(jpe?g|png)$/i.test(f));
-
-    console.log(`\n🖼  Minor Events — ${files.length} images\n`);
-
-    for (const file of files) {
-        const input = join(dir, file);
-        const output = join(dir, basename(file, extname(file)) + '.webp');
-        await compressToWebP(input, output, 1920, 80);
+    if (/\.(jpe?g|png)$/i.test(name)) {
+        // Convert to .webp
+        const outPath = join(dir, basename(name, extname(name)) + '.webp');
+        const before = statSync(fullPath).size;
+        const inputBuffer = readFileSync(fullPath);
+        const meta = await sharp(inputBuffer).metadata();
+        let pipeline = sharp(inputBuffer);
+        if (meta.width && meta.width > maxWidth) {
+            pipeline = pipeline.resize({ width: maxWidth, withoutEnlargement: true });
+        }
+        const outBuffer = await pipeline.webp({ quality }).toBuffer();
+        writeFileSync(outPath, outBuffer);
+        const after = outBuffer.length;
+        console.log(`  ✅ ${name} → ${basename(outPath)}  ${(before/1024/1024).toFixed(1)}MB → ${(after/1024).toFixed(0)}KB  (-${((1-after/before)*100).toFixed(0)}%)`);
+    } else if (/\.webp$/i.test(name)) {
+        // Re-compress in-place only if smaller
+        const before = statSync(fullPath).size;
+        const inputBuffer = readFileSync(fullPath);
+        const meta = await sharp(inputBuffer).metadata();
+        let pipeline = sharp(inputBuffer);
+        if (meta.width && meta.width > maxWidth) {
+            pipeline = pipeline.resize({ width: maxWidth, withoutEnlargement: true });
+        }
+        const outBuffer = await pipeline.webp({ quality }).toBuffer();
+        const after = outBuffer.length;
+        if (after < before) {
+            writeFileSync(fullPath, outBuffer);
+            console.log(`  ✅ ${name}  ${(before/1024).toFixed(0)}KB → ${(after/1024).toFixed(0)}KB  (-${((1-after/before)*100).toFixed(0)}%)`);
+        } else {
+            console.log(`  ⏭  ${name} already optimal (${(before/1024).toFixed(0)}KB)`);
+        }
     }
 }
 
-/* ── 2. Logo ─────────────────────────────────────────────────────────── */
-
-async function compressLogo() {
-    console.log('\n🖼  Logo\n');
-    const input = join(PUBLIC, 'oneiros-logo.png');
-    const output = join(PUBLIC, 'oneiros-logo.webp');
-    await compressToWebP(input, output, 800, 85);
-}
-
-/* ── 3. Favicon ──────────────────────────────────────────────────────── */
-
-async function compressFavicon() {
-    console.log('\n🖼  Favicon\n');
-    const input = join(PUBLIC, 'favicon.png');
-    const tmpOutput = join(PUBLIC, 'favicon-optimized.png');
-    await compressPNG(input, tmpOutput, 256);
-
-    const nobgInput = join(PUBLIC, 'favicon-nobg.png');
-    const nobgOutput = join(PUBLIC, 'favicon-nobg.webp');
-    if (fs.existsSync(nobgInput)) {
-        await compressToWebP(nobgInput, nobgOutput, 256, 85);
-    }
-}
-
-/* ── 4. Team images ──────────────────────────────────────────────────── */
-
-async function compressTeam() {
-    const dir = join(PUBLIC, 'team');
-    let files;
-    try {
-        files = readdirSync(dir).filter(f => /\.(jpe?g|png)$/i.test(f));
-    } catch {
-        console.log('\n⏭  No public/team/ directory — skipping');
+async function compressDir(dirPath, maxWidth, quality) {
+    if (!existsSync(dirPath)) {
+        console.log(`  ⏭  ${dirPath} not found — skipping`);
         return;
     }
 
-    console.log(`\n🖼  Team — ${files.length} images\n`);
+    const entries = readdirSync(dirPath, { withFileTypes: true });
+    for (const entry of entries) {
+        const fullPath = join(dirPath, entry.name);
+        if (entry.isDirectory()) {
+            await compressDir(fullPath, maxWidth, quality);
+        } else if (/\.(jpe?g|png|webp)$/i.test(entry.name)) {
+            await processFile(fullPath, maxWidth, quality);
+        }
+    }
+}
 
-    for (const file of files) {
-        const input = join(dir, file);
-        const output = join(dir, basename(file, extname(file)) + '.webp');
-        await compressToWebP(input, output, 600, 80);
+/* ── 1. Major events (5.7MB → <300KB) ──────────────────────────────── */
+async function compressMajorEvents() {
+    console.log('\n🖼  Major Events (max 1400px, q75)\n');
+    await compressDir(join(PUBLIC, 'major_events'), 1400, 75);
+}
+
+/* ── 2. Minor events ─────────────────────────────────────────────────── */
+async function compressMinorEvents() {
+    console.log('\n🖼  Minor Events (max 1200px, q75)\n');
+    await compressDir(join(PUBLIC, 'minor_events'), 1200, 75);
+}
+
+/* ── 3. Team images ──────────────────────────────────────────────────── */
+async function compressTeam() {
+    console.log('\n🖼  Team (max 400px, q80)\n');
+    await compressDir(join(PUBLIC, 'team'), 400, 80);
+}
+
+/* ── 4. Logo ─────────────────────────────────────────────────────────── */
+async function compressLogo() {
+    console.log('\n🖼  Logo\n');
+    const webpPath = join(PUBLIC, 'oneiros-logo.webp');
+    const pngPath = join(PUBLIC, 'oneiros-logo.png');
+    const inputPath = existsSync(webpPath) ? webpPath : pngPath;
+    if (existsSync(inputPath)) {
+        await processFile(inputPath, 800, 85);
+    } else {
+        console.log('  ⏭  oneiros-logo not found — skipping');
     }
 }
 
@@ -121,13 +110,13 @@ async function compressTeam() {
 (async () => {
     console.log('═══════════════════════════════════════════════');
     console.log('  Oneiros-26 Image Compression');
+    console.log('  Target: <300KB/image, 90+ Lighthouse');
     console.log('═══════════════════════════════════════════════');
 
+    await compressMajorEvents();
     await compressMinorEvents();
-    await compressLogo();
-    await compressFavicon();
     await compressTeam();
+    await compressLogo();
 
-    console.log('\n✨ Done! WebP files have been created alongside originals.');
-    console.log('   Update your component imports to use .webp paths.\n');
+    console.log('\n✨ Done! Compressed WebP files are in-place.\n');
 })();
